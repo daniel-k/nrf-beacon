@@ -1,6 +1,9 @@
 #include <xpcc/architecture.hpp>
 #include <xpcc/debug/logger.hpp>
+#include <xpcc/processing.hpp>
 #include <xpcc/driver/radio/nrf24/nrf24_phy.hpp>
+
+#include "hardware.hpp"
 
 using namespace xpcc::stm32;
 
@@ -23,7 +26,11 @@ typedef SpiSimpleMaster1 Spi;
 
 typedef xpcc::Nrf24Phy<Spi, Csn> nrf24phy;
 
-typedef GpioInputB13 AdcIn0;
+
+
+
+
+
 
 
 MAIN_FUNCTION
@@ -45,40 +52,13 @@ MAIN_FUNCTION
 	GpioInputA3::connect(Usart2::Rx, Gpio::InputType::PullUp);
 	Usart2::initialize<defaultSystemClock, 115200>(12);
 
-	ADC1_2_COMMON->CCR &= ~ADC_CR_ADEN;
-	ADC1_2_COMMON->CCR &= ~ADC_CR_ADDIS;
-	ADC3_4_COMMON->CCR &= ~ADC34_CCR_VREFEN;
-	xpcc::delayMicroseconds(100);
+	Hardware::initialize();
 
-	ADC1_2_COMMON->CCR |= ADC12_CCR_VREFEN;
-
-
-
-	Adc1::initialize(Adc1::ClockMode::Asynchronous, Adc1::Prescaler::Div256,
-						Adc1::CalibrationMode::SingleEndedInputsMode, true);
-
-	Adc1::setChannel(Adc1::Channel::InternalReference, Adc1::SampleTime::Cycles602);
-
-
-	Adc3::initialize(Adc3::ClockMode::Asynchronous, Adc3::Prescaler::Div256,
-						Adc3::CalibrationMode::SingleEndedInputsMode, true);
-	AdcIn0::connect(Adc3::Channel5);
-	Adc3::setChannel(AdcIn0::Adc3Channel, Adc3::SampleTime::Cycles182);
 
 	XPCC_LOG_INFO << "Hello from nRF24-phy-test example" << xpcc::endl;
 
 	nrf24phy::initialize();
 
-
-	ADC1_2_COMMON->CCR &= ~ADC_CR_ADEN;
-//	ADC1_2_COMMON->CCR &= ~ADC_CR_ADDIS;
-
-//	ADC3_4_COMMON->CCR &= ~ADC34_CCR_VREFEN;
-	xpcc::delayMicroseconds(10);
-
-	ADC1_2_COMMON->CCR |= ADC12_CCR_VREFEN;
-
-	ADC1_2_COMMON->CCR |= ADC_CR_ADEN;
 
 	uint8_t rf_ch;
 	uint64_t addr;
@@ -101,15 +81,11 @@ MAIN_FUNCTION
 		XPCC_LOG_INFO.printf("Expected output for RF_CH: 0x2\n");
 		XPCC_LOG_INFO.printf("Reading RF_CH:             0x%x\n\n", rf_ch);
 
-		Adc1::startConversion();
-		// wait for conversion to finish
-		while(!Adc1::isConversionFinished);
-		xpcc::delayMicroseconds(50);
-		// print result
-		int adcValue = Adc1::getValue();
 
-		// ~1514 when 3.3V
-		XPCC_LOG_INFO.printf("Battery voltage:            %d\n\n", adcValue);
+		if(Hardware::isVoltageLow())
+		{
+			XPCC_LOG_INFO.printf("Battery voltage is low!\n");
+		}
 
 		LedRight::toggle();
 		xpcc::delayMilliseconds(500);
