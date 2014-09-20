@@ -1,10 +1,10 @@
 # path to the xpcc root directory
-rootpath = 'xpcc'
+rootpath = '../xpcc'
 
 env = Environment(tools = ['xpcc'], toolpath = [rootpath + '/scons/site_tools'])
 
 # find all source files
-files = env.FindFiles('src')
+files = env.FindFiles('.')
 
 # build the program
 program = env.Program(target = env['XPCC_CONFIG']['general']['name'], source = files.sources)
