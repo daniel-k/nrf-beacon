@@ -3,12 +3,6 @@
 uint16_t Hardware::vrefNormal;
 uint16_t Hardware::vrefWindow;
 
-void Hardware::initialize()
-{
-	initializeVrefMeasurement();
-}
-
-
 void Hardware::initializeVrefMeasurement(uint16_t normal, uint16_t window)
 {
 	vrefNormal = normal;
@@ -30,11 +24,6 @@ void Hardware::initializeVrefMeasurement(uint16_t normal, uint16_t window)
 	// one dummy measurement needs to be done after configuring adc
 	sampleVref();
 
-}
-
-bool Hardware::isVoltageLow()
-{
-	return (sampleVref() - vrefNormal) > vrefWindow;
 }
 
 uint16_t Hardware::sampleVref()

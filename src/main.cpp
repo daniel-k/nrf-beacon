@@ -10,62 +10,30 @@ using namespace xpcc::stm32;
 #undef	XPCC_LOG_LEVEL
 #define	XPCC_LOG_LEVEL xpcc::log::INFO
 
-xpcc::IODeviceWrapper< Usart2 > loggerDevice;
+xpcc::IODeviceWrapper< Hardware::Uart > loggerDevice;
 xpcc::log::Logger xpcc::log::info(loggerDevice);
 
-typedef SystemClock<Pll<ExternalClock<MHz12>, MHz72> > defaultSystemClock;
 
-
-typedef GpioOutputB4 LedLeft;
-typedef GpioOutputB5 LedRight;
-typedef GpioOutputB2 Csn;
-
-
-typedef SpiSimpleMaster1 Spi;
-
-
-typedef xpcc::Nrf24Phy<Spi, Csn> nrf24phy;
-
-
-
-
-
-
+typedef xpcc::Nrf24Phy<Hardware::Spi, Hardware::SpiCsn> nrf24phy;
 
 
 MAIN_FUNCTION
 {
 	defaultSystemClock::enable();
 
-	LedLeft::setOutput(xpcc::Gpio::Low);
-	LedRight::setOutput(xpcc::Gpio::Low);
-
-	Csn::setOutput(xpcc::Gpio::High);
-
-	GpioOutputA7::connect(Spi::Mosi);
-	GpioInputA6::connect(Spi::Miso);
-	GpioOutputA5::connect(Spi::Sck);
-	Spi::initialize<defaultSystemClock, 9000000>();
-
-
-	GpioOutputA2::connect(Usart2::Tx);
-	GpioInputA3::connect(Usart2::Rx, Gpio::InputType::PullUp);
-	Usart2::initialize<defaultSystemClock, 115200>(12);
-
 	Hardware::initialize();
 
 
-	XPCC_LOG_INFO << "Hello from nRF24-phy-test example" << xpcc::endl;
+	XPCC_LOG_INFO << "Hello from nrf-beacon" << xpcc::endl;
 
 	nrf24phy::initialize();
-
 
 	uint8_t rf_ch;
 	uint64_t addr;
 
 	while (1)
 	{
-		LedLeft::toggle();
+		Hardware::LedGreen::toggle();
 		xpcc::delayMilliseconds(500);
 		nrf24phy::setRxAddress(0, 0xdeadb33f05);
 		addr = nrf24phy::getRxAddress(0);
@@ -87,7 +55,7 @@ MAIN_FUNCTION
 			XPCC_LOG_INFO.printf("Battery voltage is low!\n");
 		}
 
-		LedRight::toggle();
+		Hardware::LedWhite::toggle();
 		xpcc::delayMilliseconds(500);
 
 	}
