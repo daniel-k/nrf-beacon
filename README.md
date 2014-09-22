@@ -1,12 +1,18 @@
 nrf-beacon
 ==========
 
-$ git submodule init
-$ git submodule update
+Please do
 
-after cloning
+```bash
+git submodule init
+git submodule update
+```
 
-please manually edit driver.xml in
-/xpcc/src/xpcc/architecture/platform/peripheral/uart/stm32/
+after cloning to fetch the xpcc library.
 
-set tx_buffer from 8 to 254
+
+Then, please manually edit __driver.xml__ in
+
+    xpcc/src/xpcc/architecture/platform/peripheral/uart/stm32/
+
+set **tx_buffer to 254**
