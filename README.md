@@ -8,11 +8,12 @@ git submodule init
 git submodule update
 ```
 
-after cloning to fetch the xpcc library.
+after cloning to fetch the xpcc library
 
 
-Then, please manually edit __driver.xml__ in
+Build and program via DFU:
 
-    xpcc/src/xpcc/architecture/platform/peripheral/uart/stm32/
-
-set **tx_buffer to 254**
+```bash
+cd src/
+scons dfu
+```
