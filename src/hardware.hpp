@@ -8,97 +8,97 @@ using namespace xpcc::stm32;
 
 typedef SystemClock<Pll<ExternalClock<MHz12>, MHz72> > defaultSystemClock;
 
-constexpr uint32_t UartSpeed	= 115200;
-constexpr uint32_t SpiSpeed		= 9000000;
+constexpr uint32_t UartSpeed    = 115200;
+constexpr uint32_t SpiSpeed     = 9000000;
 
 class Hardware
 {
 public:
 
-	typedef GpioOutputB4 					nLedGreen;
-	typedef GpioOutputB5 					nLedWhite;
-	typedef xpcc::GpioInverted<nLedGreen>	LedGreen;
-	typedef xpcc::GpioInverted<nLedWhite>	LedWhite;
+    typedef GpioOutputB4                    nLedGreen;
+    typedef GpioOutputB5                    nLedWhite;
+    typedef xpcc::GpioInverted<nLedGreen>   LedGreen;
+    typedef xpcc::GpioInverted<nLedWhite>   LedWhite;
 
-	typedef SpiSimpleMaster1 				Spi;
-	typedef GpioOutputA5 					SpiSck;
-	typedef GpioInputA6						SpiMiso;
-	typedef GpioOutputA7					SpiMosi;
-	typedef GpioOutputB2 					SpiCsn;
-	typedef xpcc::GpioInverted<SpiCsn>		SpiCs;
+    typedef SpiSimpleMaster1                Spi;
+    typedef GpioOutputA5                    SpiSck;
+    typedef GpioInputA6                     SpiMiso;
+    typedef GpioOutputA7                    SpiMosi;
+    typedef GpioOutputB2                    SpiCsn;
+    typedef xpcc::GpioInverted<SpiCsn>      SpiCs;
 
-	typedef Usart2							Uart;
-	typedef GpioOutputA2					UartTx;
-	typedef GpioInputA3						UartRx;
+    typedef Usart2                          Uart;
+    typedef GpioOutputA2                    UartTx;
+    typedef GpioInputA3                     UartRx;
 
 
-	static void
-	initialize()
-	{
-		initializeLeds();
-		initializeSpi();
-		initializeUart();
-		initializeVrefMeasurement();
-	}
+    static void
+    initialize()
+    {
+        initializeLeds();
+        initializeSpi();
+        initializeUart();
+        initializeVrefMeasurement();
+    }
 
-	static uint32_t
-	getUniqueId()
-	{
-		return *((uint32_t*)0x1FFFF7AC);
-	}
+    static uint32_t
+    getUniqueId()
+    {
+        return *((uint32_t*)0x1FFFF7AC);
+    }
 
-	/**
-	 * @brief Configure Adc1 for measurement of internal reference
-	 */
-	static void
-	initializeVrefMeasurement(
-			uint16_t normal = 1514,
-			uint16_t window = 30);
+    /**
+     * @brief Configure Adc1 for measurement of internal reference
+     */
+    static void
+    initializeVrefMeasurement(
+            uint16_t normal = 1514,
+            uint16_t window = 30);
 
-	static void
-	initializeLeds()
-	{
-		LedGreen::setOutput(xpcc::Gpio::Low);
-		LedWhite::setOutput(xpcc::Gpio::Low);
-	}
+    static void
+    initializeLeds()
+    {
+        LedGreen::setOutput(xpcc::Gpio::Low);
+        LedWhite::setOutput(xpcc::Gpio::Low);
+    }
 
-	static void
-	initializeSpi()
-	{
-		SpiMosi::connect(Spi::Mosi);
-		SpiMiso::connect(Spi::Miso);
-		SpiSck::connect(Spi::Sck);
-		Spi::initialize<defaultSystemClock, SpiSpeed>();
+    static void
+    initializeSpi()
+    {
+        SpiMosi::connect(Spi::Mosi);
+        SpiMiso::connect(Spi::Miso);
+        SpiSck::connect(Spi::Sck);
+        Spi::initialize<defaultSystemClock, SpiSpeed>();
 
-		SpiCsn::setOutput(xpcc::Gpio::High);
-	}
+        SpiCsn::setOutput(xpcc::Gpio::High);
+    }
 
-	static void
-	initializeUart()
-	{
-		UartTx::connect(Uart::Tx);
-		UartRx::connect(Uart::Rx, Gpio::InputType::PullUp);
-		Uart::initialize<defaultSystemClock, UartSpeed>(12);
-	}
+    static void
+    initializeUart()
+    {
+        UartTx::connect(Uart::Tx);
+        UartRx::connect(Uart::Rx, Gpio::InputType::PullUp);
+        Uart::initialize<defaultSystemClock, UartSpeed>(12);
+    }
 
-	static bool
-	isVoltageLow()
-	{
-		return (sampleVref() - vrefNormal) > vrefWindow;
-	}
+    static bool
+    isVoltageLow()
+    {
+        return (sampleVref() - vrefNormal) > vrefWindow;
+    }
 
-//	static uint16_t
-//	chargeCurrent();
-
-private:
-
-	static uint16_t
-	sampleVref();
-
+//  static uint16_t
+//  chargeCurrent();
 
 private:
-	static uint16_t vrefNormal;	///< Adc value when voltage is normal
-	static uint16_t vrefWindow;	///< When Vref is outside VrefNormal +- VrefWindow
+
+    static uint16_t
+    sampleVref();
+
+
+private:
+    static uint16_t vrefNormal; ///< Adc value when voltage is normal
+    static uint16_t vrefWindow; ///< When Vref is outside VrefNormal +- VrefWindow
 };
 
 
