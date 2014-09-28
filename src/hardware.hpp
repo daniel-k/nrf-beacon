@@ -15,18 +15,21 @@ class Hardware
 {
 public:
 
-	typedef GpioOutputB4 		LedGreen;
-	typedef GpioOutputB5 		LedWhite;
+	typedef GpioOutputB4 					nLedGreen;
+	typedef GpioOutputB5 					nLedWhite;
+	typedef xpcc::GpioInverted<nLedGreen>	LedGreen;
+	typedef xpcc::GpioInverted<nLedWhite>	LedWhite;
 
-	typedef SpiSimpleMaster1 	Spi;
-	typedef GpioOutputA5 		SpiSck;
-	typedef GpioInputA6			SpiMiso;
-	typedef GpioOutputA7		SpiMosi;
-	typedef GpioOutputB2 		SpiCsn;
+	typedef SpiSimpleMaster1 				Spi;
+	typedef GpioOutputA5 					SpiSck;
+	typedef GpioInputA6						SpiMiso;
+	typedef GpioOutputA7					SpiMosi;
+	typedef GpioOutputB2 					SpiCsn;
+	typedef xpcc::GpioInverted<SpiCsn>		SpiCs;
 
-	typedef Usart2				Uart;
-	typedef GpioOutputA2		UartTx;
-	typedef GpioInputA3			UartRx;
+	typedef Usart2							Uart;
+	typedef GpioOutputA2					UartTx;
+	typedef GpioInputA3						UartRx;
 
 
 	static void
@@ -36,6 +39,12 @@ public:
 		initializeSpi();
 		initializeUart();
 		initializeVrefMeasurement();
+	}
+
+	static uint32_t
+	getUniqueId()
+	{
+		return *((uint32_t*)0x1FFFF7AC);
 	}
 
 	/**
