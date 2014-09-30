@@ -71,7 +71,7 @@ MAIN_FUNCTION
         XPCC_LOG_INFO.printf("Reading TX address:        0x%x%x\n", static_cast<uint32_t>((addr >> 32) & 0xffffffff), static_cast<uint32_t>(addr & 0xffffffff));
 
         rf_ch = nrf24phy::readRegister(xpcc::nrf24::Register::RF_CH);
-        XPCC_LOG_INFO.printf("Expected output for RF_CH: 0x2\n");
+        XPCC_LOG_INFO.printf("Expected output for RF_CH: 0x%x\n", 45);
         XPCC_LOG_INFO.printf("Reading RF_CH:             0x%x\n\n", rf_ch);
 
 
@@ -79,6 +79,10 @@ MAIN_FUNCTION
         {
             XPCC_LOG_INFO.printf("Battery voltage is low!\n");
         }
+
+        XPCC_LOG_INFO.printf("Raw X: %d\n", Hardware::getAnalogStickRawX());
+        XPCC_LOG_INFO.printf("Raw Y: %d\n", Hardware::getAnalogStickRawY());
+
 
 //      XPCC_LOG_INFO.printf("Unique id: 0x ");
 //      for(int i = 2; i >= 0; i--)

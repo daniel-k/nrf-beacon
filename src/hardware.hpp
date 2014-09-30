@@ -31,6 +31,9 @@ public:
     typedef GpioOutputA2                    UartTx;
     typedef GpioInputA3                     UartRx;
 
+    typedef GpioInputB13                    Adc35;
+    typedef GpioInputB14                    Adc44;
+
 
     static void
     initialize()
@@ -39,6 +42,7 @@ public:
         initializeSpi();
         initializeUart();
         initializeVrefMeasurement();
+        initializeAdc();
     }
 
     static uint32_t
@@ -54,6 +58,9 @@ public:
     initializeVrefMeasurement(
             uint16_t normal = 1514,
             uint16_t window = 30);
+
+    static void
+    initializeAdc();
 
     static void
     initializeLeds()
@@ -86,6 +93,13 @@ public:
     {
         return (sampleVref() - vrefNormal) > vrefWindow;
     }
+
+    static uint16_t
+    getAnalogStickRawX();
+
+    static uint16_t
+    getAnalogStickRawY();
+
 
 //  static uint16_t
 //  chargeCurrent();
