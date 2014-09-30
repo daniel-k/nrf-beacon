@@ -44,8 +44,8 @@ Hardware::initializeAdc()
     Adc35::connect(Adc3::Channel5);
     Adc44::connect(Adc4::Channel4);
 
-    Adc3::setChannel(Adc35::Adc3Channel, Adc3::SampleTime::Cycles182);
-    Adc4::setChannel(Adc44::Adc4Channel, Adc4::SampleTime::Cycles182);
+    Adc3::setChannel(Adc35::Adc3Channel, Adc3::SampleTime::Cycles602);
+    Adc4::setChannel(Adc44::Adc4Channel, Adc4::SampleTime::Cycles602);
 
     getAnalogStickRawX();
     getAnalogStickRawY();
@@ -68,7 +68,7 @@ Hardware::sampleVref()
 uint16_t
 Hardware::getAnalogStickRawY()
 {
-    constexpr uint16_t samples = 200;
+    constexpr uint16_t samples = 2;
 
     uint32_t data = 0;
 
@@ -85,7 +85,7 @@ Hardware::getAnalogStickRawY()
 uint16_t
 Hardware::getAnalogStickRawX()
 {
-    constexpr uint16_t samples = 200;
+    constexpr uint16_t samples = 2;
 
     uint32_t data = 0;
 

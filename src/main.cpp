@@ -43,11 +43,6 @@ MAIN_FUNCTION
     nrf24config::setChannel(45);
     nrf24config::setCrc(Crc::Crc2Byte);
 
-    uint8_t rf_ch;
-    uint64_t addr;
-
-
-
     while (1)
     {
         if(Hardware::getUniqueId() == id_module_1)
@@ -58,40 +53,32 @@ MAIN_FUNCTION
             Hardware::LedWhite::toggle();
         }
 
-        xpcc::delayMilliseconds(500);
+        xpcc::delayMilliseconds(200);
 
-        nrf24phy::setRxAddress(0, 0xdeadb33f05);
-        addr = nrf24phy::getRxAddress(0);
-        XPCC_LOG_INFO.printf("Setting RX_P0 address to:  0xDEADB33F05\n");
-        XPCC_LOG_INFO.printf("Reading RX_P0 address:     0x%x%x\n", static_cast<uint32_t>((addr >> 32) & 0xffffffff), static_cast<uint32_t>(addr & 0xffffffff));
+        // clear screen
+        XPCC_LOG_INFO.printf("\033[2J");
 
-        nrf24phy::setTxAddress(0xabcdef55ff);
-        addr = nrf24phy::getTxAddress();
-        XPCC_LOG_INFO.printf("Setting TX address to:     0xABCDEF55FF\n");
-        XPCC_LOG_INFO.printf("Reading TX address:        0x%x%x\n", static_cast<uint32_t>((addr >> 32) & 0xffffffff), static_cast<uint32_t>(addr & 0xffffffff));
+        uint16_t raw_x, raw_y, x, y;
 
-        rf_ch = nrf24phy::readRegister(xpcc::nrf24::Register::RF_CH);
-        XPCC_LOG_INFO.printf("Expected output for RF_CH: 0x%x\n", 45);
-        XPCC_LOG_INFO.printf("Reading RF_CH:             0x%x\n\n", rf_ch);
+        raw_x = Hardware::getAnalogStickRawX();
+        raw_y = Hardware::getAnalogStickRawY();
+
+        x = raw_x / 200 + 3;
+        y = raw_y / 200 + 3;
 
 
-        if(Hardware::isVoltageLow())
-        {
-            XPCC_LOG_INFO.printf("Battery voltage is low!\n");
-        }
+        XPCC_LOG_INFO.printf("Raw X: %4d Y: %4d", raw_x, raw_y);
 
-        XPCC_LOG_INFO.printf("Raw X: %d\n", Hardware::getAnalogStickRawX());
-        XPCC_LOG_INFO.printf("Raw Y: %d\n", Hardware::getAnalogStickRawY());
+        // go to next line
+        XPCC_LOG_INFO.printf("\033[2;0H");
+        XPCC_LOG_INFO.printf("    X: %4d Y: %4d", x, y);
 
+        // print X to visualize stick position
+        XPCC_LOG_INFO.printf("\033[%d;%dH", y, x);
+        XPCC_LOG_INFO.printf("X");
 
-//      XPCC_LOG_INFO.printf("Unique id: 0x ");
-//      for(int i = 2; i >= 0; i--)
-//      {
-//          XPCC_LOG_INFO.printf("%08x ", unique_id_base[i]);
-//          xpcc::delayMilliseconds(1);
-//      }
-//      XPCC_LOG_INFO.printf("\n");
-
+        // move cursor back to 0,0
+        XPCC_LOG_INFO.printf("\033[0;0H");
     }
 
     return 0;
