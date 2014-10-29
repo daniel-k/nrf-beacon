@@ -17109,21 +17109,10 @@ Smaller footprint variant.</description>
 <wire x1="162.56" y1="73.66" x2="162.56" y2="66.04" width="0.1524" layer="97"/>
 <wire x1="162.56" y1="66.04" x2="193.04" y2="66.04" width="0.1524" layer="97"/>
 <wire x1="71.12" y1="109.22" x2="71.12" y2="127" width="0.1524" layer="97"/>
-<text x="17.78" y="185.42" size="1.778" layer="97">Errata:
-
-Forgot to connect CHARGER_CHRG
-and CHARGER_PROG to STM32
-
-STC4054 seems to enter trickle-charge
-mode when connected to USB while
-battery is disconnected, so maybe
-connect V_BAT and VCC each over a
-diode to LDO to avoid low voltage
-operation</text>
 </plain>
 <instances>
 <instance part="FRAME1" gate="G$1" x="0" y="0"/>
-<instance part="IC1" gate="PORTA_L" x="116.84" y="111.76" rot="MR0"/>
+<instance part="IC1" gate="PORTA_L" x="119.38" y="111.76" rot="MR0"/>
 <instance part="IC1" gate="AN_POWER" x="58.42" y="20.32"/>
 <instance part="IC1" gate="G$2" x="43.18" y="20.32"/>
 <instance part="IC1" gate="PORTA_H" x="172.72" y="83.82" rot="MR0"/>
@@ -17722,8 +17711,8 @@ operation</text>
 </segment>
 <segment>
 <pinref part="IC1" gate="PORTA_L" pin="PA7"/>
-<wire x1="124.46" y1="101.6" x2="129.54" y2="101.6" width="0.1524" layer="91"/>
-<label x="129.54" y="101.6" size="1.27" layer="95" xref="yes"/>
+<wire x1="127" y1="101.6" x2="132.08" y2="101.6" width="0.1524" layer="91"/>
+<label x="132.08" y="101.6" size="1.27" layer="95" xref="yes"/>
 </segment>
 </net>
 <net name="NRF_MISO" class="0">
@@ -17734,8 +17723,8 @@ operation</text>
 </segment>
 <segment>
 <pinref part="IC1" gate="PORTA_L" pin="PA6"/>
-<wire x1="124.46" y1="104.14" x2="129.54" y2="104.14" width="0.1524" layer="91"/>
-<label x="129.54" y="104.14" size="1.27" layer="95" xref="yes"/>
+<wire x1="127" y1="104.14" x2="132.08" y2="104.14" width="0.1524" layer="91"/>
+<label x="132.08" y="104.14" size="1.27" layer="95" xref="yes"/>
 </segment>
 </net>
 <net name="NRF_SCK" class="0">
@@ -17746,8 +17735,8 @@ operation</text>
 </segment>
 <segment>
 <pinref part="IC1" gate="PORTA_L" pin="PA5"/>
-<wire x1="124.46" y1="106.68" x2="129.54" y2="106.68" width="0.1524" layer="91"/>
-<label x="129.54" y="106.68" size="1.27" layer="95" xref="yes"/>
+<wire x1="127" y1="106.68" x2="132.08" y2="106.68" width="0.1524" layer="91"/>
+<label x="132.08" y="106.68" size="1.27" layer="95" xref="yes"/>
 </segment>
 </net>
 <net name="NRF_!CS" class="0">
@@ -17881,6 +17870,11 @@ operation</text>
 <junction x="83.82" y="154.94"/>
 <label x="88.9" y="154.94" size="0.762" layer="95" rot="R270" xref="yes"/>
 </segment>
+<segment>
+<pinref part="IC1" gate="PORTA_L" pin="PA0"/>
+<wire x1="127" y1="119.38" x2="129.54" y2="119.38" width="0.1524" layer="91"/>
+<label x="129.54" y="119.38" size="1.27" layer="95" xref="yes"/>
+</segment>
 </net>
 <net name="N$23" class="0">
 <segment>
@@ -17906,6 +17900,11 @@ operation</text>
 <wire x1="45.72" y1="154.94" x2="43.18" y2="154.94" width="0.1524" layer="91"/>
 <wire x1="45.72" y1="144.78" x2="45.72" y2="154.94" width="0.1524" layer="91"/>
 <junction x="45.72" y="154.94"/>
+</segment>
+<segment>
+<pinref part="IC1" gate="PORTB_L" pin="PB6"/>
+<wire x1="93.98" y1="106.68" x2="96.52" y2="106.68" width="0.1524" layer="91"/>
+<label x="96.52" y="106.68" size="1.27" layer="95" xref="yes"/>
 </segment>
 </net>
 <net name="N$1" class="0">
@@ -17947,8 +17946,8 @@ operation</text>
 </segment>
 <segment>
 <pinref part="IC1" gate="PORTA_L" pin="PA2"/>
-<wire x1="124.46" y1="114.3" x2="127" y2="114.3" width="0.1524" layer="91"/>
-<label x="127" y="114.3" size="1.27" layer="95" xref="yes"/>
+<wire x1="127" y1="114.3" x2="129.54" y2="114.3" width="0.1524" layer="91"/>
+<label x="129.54" y="114.3" size="1.27" layer="95" xref="yes"/>
 </segment>
 </net>
 <net name="DEBUG_RX" class="0">
@@ -17959,8 +17958,8 @@ operation</text>
 </segment>
 <segment>
 <pinref part="IC1" gate="PORTA_L" pin="PA3"/>
-<wire x1="124.46" y1="111.76" x2="127" y2="111.76" width="0.1524" layer="91"/>
-<label x="127" y="111.76" size="1.27" layer="95" xref="yes"/>
+<wire x1="127" y1="111.76" x2="129.54" y2="111.76" width="0.1524" layer="91"/>
+<label x="129.54" y="111.76" size="1.27" layer="95" xref="yes"/>
 </segment>
 </net>
 <net name="!RESET" class="0">
