@@ -15,8 +15,8 @@ class Hardware
 {
 public:
 
-    typedef GpioOutputB4                    nLedGreen;
-    typedef GpioOutputB5                    nLedWhite;
+    typedef GpioOutputB5                    nLedGreen;
+    typedef GpioOutputB4                    nLedWhite;
     typedef xpcc::GpioInverted<nLedGreen>   LedGreen;
     typedef xpcc::GpioInverted<nLedWhite>   LedWhite;
 
