@@ -1,6 +1,7 @@
 #ifndef HARDWARE_HPP
 #define HARDWARE_HPP
 
+#include <stdint.h>
 #include <xpcc/architecture.hpp>
 #include <xpcc/processing.hpp>
 
@@ -20,12 +21,14 @@ public:
     typedef xpcc::GpioInverted<nLedGreen>   LedGreen;
     typedef xpcc::GpioInverted<nLedWhite>   LedWhite;
 
-    typedef SpiSimpleMaster1                Spi;
+    typedef SpiMaster1                		Spi;
     typedef GpioOutputA5                    SpiSck;
     typedef GpioInputA6                     SpiMiso;
     typedef GpioOutputA7                    SpiMosi;
     typedef GpioOutputB2                    SpiCsn;
     typedef xpcc::GpioInverted<SpiCsn>      SpiCs;
+
+    typedef GpioOutputB1					Ce;
 
     typedef Usart2                          Uart;
     typedef GpioOutputA2                    UartTx;
