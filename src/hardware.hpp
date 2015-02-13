@@ -40,6 +40,7 @@ public:
     {
         initializeLeds();
         initializeSpi();
+        initializeGpio();
         initializeUart();
         initializeVrefMeasurement();
     }
@@ -63,6 +64,12 @@ public:
     {
         LedGreen::setOutput(xpcc::Gpio::Low);
         LedWhite::setOutput(xpcc::Gpio::Low);
+    }
+
+    static void
+    initializeGpio()
+    {
+    	Ce::setOutput();
     }
 
     static void
