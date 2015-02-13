@@ -131,6 +131,8 @@ MAIN_FUNCTION
     		/* Check if packet was sent successfully  */
     		if(nrf24phy::readStatus() & ( (uint8_t)nrf24phy::Status::TX_DS | (uint8_t)nrf24phy::Status::MAX_RT ))
     		{
+    			XPCC_LOG_INFO.printf("ARC: %d\n", nrf24phy::readRegister(nrf24phy::NrfRegister::OBSERVE_TX) & 0x0F);
+
     			if(nrf24phy::readStatus() & (uint8_t)nrf24phy::Status::MAX_RT)
     			{
     				XPCC_LOG_INFO.printf("Packet lost, MAX_RT reached\n");
