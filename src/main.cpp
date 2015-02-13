@@ -27,9 +27,8 @@ constexpr uint8_t addr_module_3 = 0x33;
 #undef  XPCC_LOG_LEVEL
 #define XPCC_LOG_LEVEL xpcc::log::INFO
 
-xpcc::IODeviceWrapper< Hardware::Uart > loggerDevice;
+xpcc::IODeviceWrapper< Hardware::Uart, xpcc::IOBuffer::BlockIfFull > loggerDevice;
 xpcc::log::Logger xpcc::log::info(loggerDevice);
-
 
 
 typedef xpcc::Nrf24Phy<Hardware::Spi, Hardware::SpiCsn, Hardware::Ce> nrf24phy;
@@ -69,7 +68,7 @@ MAIN_FUNCTION
     	nrf24config::powerUp();
     	Hardware::Ce::set();
 
-    	xpcc::PeriodicTimer<> RpdReadout(200);
+    	xpcc::PeriodicTimer RpdReadout(1000);
 
 
     	while(1)
@@ -88,7 +87,7 @@ MAIN_FUNCTION
     			Hardware::LedGreen::toggle();
     		}
 
-    		if(RpdReadout.isExpired())
+    		if(RpdReadout.execute())
     		{
     			XPCC_LOG_INFO.printf("Rpd is: %d \n", nrf24phy::readRegister(nrf24phy::NrfRegister::RPD));
 
@@ -117,11 +116,11 @@ MAIN_FUNCTION
     	nrf24phy::setTxAddress(base_addr | addr_module_1);
 
     	/* Timer to send packets every 1000ms */
-		xpcc::PeriodicTimer<> sendPacket(1000);
+		xpcc::PeriodicTimer sendPacket(1000);
 
     	while(1)
     	{
-    		if(sendPacket.isExpired())
+    		if(sendPacket.execute())
     		{
 				nrf24phy::writeTxPayload(data, 4);
 
