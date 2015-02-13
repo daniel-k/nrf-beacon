@@ -9,9 +9,10 @@
 using namespace xpcc::stm32;
 
 
-constexpr int id_module_1 = 0x0028003c;
-constexpr int id_module_2 = 0x001d003c;
-constexpr int id_module_3 = 0x002e0029;
+constexpr int id_module_1 = 0x002e0029;
+constexpr int id_module_2 = 0x0028003c;		// module 2 is broken
+constexpr int id_module_3 = 0x001d003c;
+
 
 
 constexpr uint64_t base_addr = 0xdeadbeef00;
