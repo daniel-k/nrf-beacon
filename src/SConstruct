@@ -26,5 +26,7 @@ env.Alias('dfu', env.DfuStm32Programmer(binfile))
 env.Alias('program', env.OpenOcd(program))
 env.Alias('build', [hexfile, env.Listing(program)])
 env.Alias('all', ['build', 'size'])
+env.Alias('remote-program', env.GdbRemoteProgram(program))
+env.Alias('remote-reset', env.GdbRemoteReset())
 
 env.Default('all')
