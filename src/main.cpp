@@ -3,6 +3,7 @@
 #include <xpcc/processing.hpp>
 #include <xpcc/driver/radio/nrf24/nrf24_phy.hpp>
 #include <xpcc/driver/radio/nrf24/nrf24_config.hpp>
+#include <xpcc/driver/radio/nrf24/nrf24_data.hpp>
 
 #include "hardware.hpp"
 
@@ -29,10 +30,21 @@ constexpr uint8_t addr_module_3 = 0x33;
 
 xpcc::IODeviceWrapper< Hardware::Uart, xpcc::IOBuffer::BlockIfFull > loggerDevice;
 xpcc::log::Logger xpcc::log::info(loggerDevice);
+xpcc::log::Logger xpcc::log::debug(loggerDevice);
+
 
 
 typedef xpcc::Nrf24Phy<Hardware::Spi, Hardware::SpiCsn, Hardware::Ce> nrf24phy;
 typedef xpcc::Nrf24Config<nrf24phy> nrf24config;
+typedef xpcc::Nrf24Data<nrf24phy> nrf24data;
+
+
+
+void dataLayerTest();
+void simplePhyTest();
+
+constexpr int payload_length_phy = 4;
+constexpr int payload_length_data = payload_length_phy - sizeof(nrf24data::header_t);
 
 MAIN_FUNCTION
 {
@@ -42,9 +54,125 @@ MAIN_FUNCTION
     XPCC_LOG_INFO << "[log-start] nrf-beacon" << xpcc::endl;
 
     Hardware::initialize();
-    nrf24phy::initialize(4);	// 4 byte payload
+    nrf24phy::initialize(payload_length_phy);	// 4 byte payload
+
+    dataLayerTest();
+
+    return 0;
+}
+
+void
+dataLayerTest()
+{
+    uint32_t id = Hardware::getUniqueId();
+
+    nrf24data::packet_t* packet = nrf24data::allocatePacket(payload_length_data);
+
+	XPCC_LOG_INFO.printf("packet.data: %08x\n", packet->data);
+
+    nrf24config::setChannel(10);
+
+    xpcc::PeriodicTimer sendTimer(500);
+
+    if(id == id_module_1)
+    {
+    	// will be transmitter
+    	XPCC_LOG_INFO << "I'm module #1, transmitter" << xpcc::endl;
+
+    	nrf24data::initialize(base_addr, addr_module_1);
+
+    	memset(packet->data, 0xCD, payload_length_data);
+
+    	XPCC_LOG_INFO.printf("packet.data AFTER MEMSET: %08x\n", packet->data);
+
+    	packet->dest = addr_module_3;
+    	packet->length = payload_length_data;
+
+    	XPCC_LOG_INFO << "Data length " << packet->length << xpcc::endl;
+
+    	XPCC_LOG_INFO << "Still alive" << xpcc::endl;
+
+    	while(1)
+    	{
+    		if(sendTimer.execute())
+    		{
+				if(nrf24data::sendPacket(*packet))
+				{
+					XPCC_LOG_INFO << "Packet sent" << xpcc::endl;
+				} else
+				{
+					XPCC_LOG_INFO << "Packet not sent" << xpcc::endl;
+				}
+
+				// wait for feedback
+				while(nrf24data::getSendingFeedback() == nrf24data::SendingState::Busy)
+				{
+					XPCC_LOG_INFO << "Waiting for feedback" << xpcc::endl;
+					xpcc::delayMilliseconds(1);
+				}
+
+				nrf24data::SendingState feedback = nrf24data::getSendingFeedback();
+
+				switch(feedback)
+				{
+				case nrf24data::SendingState::FinishedAck:
+					XPCC_LOG_INFO << "ACK" << xpcc::endl;
+					break;
+				case nrf24data::SendingState::FinishedNack:
+					XPCC_LOG_INFO << "NACK!" << xpcc::endl;
+					break;
+				case nrf24data::SendingState::DontKnow:
+					XPCC_LOG_INFO << "don't know" << xpcc::endl;
+					break;
+				case nrf24data::SendingState::Failed:
+					XPCC_LOG_INFO << "failed" << xpcc::endl;
+					break;
+				default:
+					XPCC_LOG_INFO << "error" << xpcc::endl;
+					break;
+				}
+
+				*((uint16_t*) packet->data) += 1;
+    		}
+    	}
+
+    } else if(id == id_module_3)
+    {
+    	// will be transmitter
+    	XPCC_LOG_INFO << "I'm module #3, receiver" << xpcc::endl;
+
+    	nrf24data::initialize(base_addr, addr_module_3);
+
+    	while(1)
+    	{
+    		if(nrf24data::isPacketAvailable())
+    		{
+    			nrf24data::getPacket(*packet);
+
+    			XPCC_LOG_INFO << "Received packet" << xpcc::endl;
+    			XPCC_LOG_INFO.printf("Data: %x %x\n",
+    			                     packet->data[1],
+    			                     packet->data[0]);
+    		}
+    		/*
+    		else {
+    			nrf24phy::pulseCe();
+    		}
+			*/
+    		if(sendTimer.execute())
+    		{
+    			XPCC_LOG_INFO << "Still alive" << xpcc::endl;
+    		}
+    	}
+    }
 
 
+}
+
+
+void
+simplePhyTest()
+{
     nrf24config::setSpeed(nrf24config::Speed::kBps250);
     nrf24config::setChannel(10);
     nrf24config::setCrc(nrf24config::Crc::Crc1Byte);
@@ -159,6 +287,4 @@ MAIN_FUNCTION
     } else {
     	XPCC_LOG_INFO.printf("Unknown id: %x\n", id);
     }
-
-    return 0;
 }
