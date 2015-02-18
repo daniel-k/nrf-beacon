@@ -1,5 +1,7 @@
+import os
+
 # path to the xpcc root directory
-rootpath = '../xpcc'
+rootpath = os.path.realpath('../xpcc')
 
 env = Environment(tools = ['xpcc'], toolpath = [rootpath + '/scons/site_tools'])
 
