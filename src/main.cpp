@@ -35,9 +35,9 @@ typedef xpcc::Nrf24Data<nrf24phy> nrf24data;
 void dataLayerTest();
 void simplePhyTest();
 
-constexpr int payload_length_phy = 4;
+constexpr int payload_length_phy = 6;
 constexpr int payload_length_data = payload_length_phy -
-                                    sizeof(nrf24data::header_t);
+                                    sizeof(nrf24data::Header);
 
 MAIN_FUNCTION
 {
@@ -58,16 +58,18 @@ void dataLayerTest()
 {
 	uint32_t id = Hardware::getUniqueId();
 
-	nrf24data::packet_t* packet = nrf24data::allocatePacket(
-	        payload_length_data);
-	XPCC_LOG_INFO.printf("Packet with %d bytes payload allocated @ 0x%08x\n",
-	        payload_length_data, packet);
 
-	if (packet == nullptr)
-	{
-		XPCC_LOG_ERROR << "Can't allocate memory for packet" << xpcc::endl;
-		return;
-	}
+	nrf24data::Packet packet;
+
+	uint32_t* data = reinterpret_cast<uint32_t*>(packet.data);
+
+	XPCC_LOG_INFO.printf("Packet with %d bytes payload allocated @ 0x%08x\n",
+	        packet.length, &packet);
+
+	XPCC_LOG_INFO.printf("dest: 0x%02x\n", packet.dest);
+	XPCC_LOG_INFO.printf("src: 0x%02x\n", packet.src);
+	XPCC_LOG_INFO.printf("data: 0x%02x\n", packet.data);
+	XPCC_LOG_INFO.printf("length: 0x%02x\n", packet.length);
 
 	// Set channel as this is not set by data layer
 	nrf24config::setChannel(10);
@@ -79,9 +81,7 @@ void dataLayerTest()
 
 		nrf24data::initialize(base_addr, addr_module_1);
 
-		memset(packet->data, 0xCD, payload_length_data);
-		packet->dest = addr_module_3;
-		packet->length = payload_length_data;
+		packet.dest = addr_module_3;
 
 		// send a packet every 500ms
 		xpcc::PeriodicTimer sendTimer(500);
@@ -90,22 +90,22 @@ void dataLayerTest()
 		{
 			if (sendTimer.execute())
 			{
-				nrf24data::sendPacket(*packet);
+				nrf24data::sendPacket(packet);
+				XPCC_LOG_INFO << "Packet maybe sent" << xpcc::endl;
+				*data += 1;
+			}
 
-				// wait for feedback
-				while (nrf24data::getSendingFeedback()
-				        == nrf24data::SendingState::Busy)
-					;
-
-				nrf24data::SendingState feedback =
-				        nrf24data::getSendingFeedback();
+			// wait for feedback
+			if (nrf24data::isPacketProcessed())
+			{
+				nrf24data::SendingState feedback = nrf24data::getSendingFeedback();
 
 				switch (feedback) {
 				case nrf24data::SendingState::FinishedAck:
 					XPCC_LOG_INFO << "ACK" << xpcc::endl;
 					break;
 				case nrf24data::SendingState::FinishedNack:
-					XPCC_LOG_INFO << "NACK!" << xpcc::endl;
+					XPCC_LOG_INFO << "NACK" << xpcc::endl;
 					break;
 				case nrf24data::SendingState::DontKnow:
 					XPCC_LOG_INFO << "Don't know" << xpcc::endl;
@@ -117,9 +117,10 @@ void dataLayerTest()
 					XPCC_LOG_INFO << "unknown error" << xpcc::endl;
 					break;
 				}
-
-				*((uint16_t*) packet->data) += 1;
 			}
+
+
+			nrf24data::update();
 		}
 
 	} else if (id == id_module_3)
@@ -134,19 +135,22 @@ void dataLayerTest()
 
 		while (1)
 		{
-			if (nrf24data::isPacketAvailable())
+			if (nrf24data::getPacket(packet))
 			{
-				nrf24data::getPacket(*packet);
-
-				XPCC_LOG_INFO << "Received packet" << xpcc::endl;
-				XPCC_LOG_INFO.printf("Data: %x %x\n", packet->data[1],
-				        packet->data[0]);
+				XPCC_LOG_INFO.printf("Received packet from 0x%02x\n", packet.src);
+				XPCC_LOG_INFO.printf("Data: %02x %02x %02x %02x\n",
+				        packet.data[3],
+				        packet.data[2],
+				        packet.data[1],
+				        packet.data[0]);
 			}
 
 			if (aliveTimer.execute())
 			{
 				XPCC_LOG_INFO << "Still alive" << xpcc::endl;
 			}
+
+			nrf24data::update();
 		}
 	}
 }
