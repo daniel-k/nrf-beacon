@@ -56,16 +56,18 @@ MAIN_FUNCTION
 	switch(id)
 	{
 	case id_module_1:
-		addr_own = addr_module_1;
-		addr_other = addr_module_3;
-		break;
-
-	case id_module_3:
-		addr_own = addr_module_3;
+		addr_own   = addr_module_3;
 		addr_other = addr_module_1;
 		break;
 
+	case id_module_3:
+		addr_own   = addr_module_1;
+		addr_other = addr_module_3;
+		break;
+
 	case id_module_2:
+		// This module is dead.
+
 	default:
 		XPCC_LOG_INFO << "Module Id unknown, exiting" << xpcc::endl;
 		return 0;
@@ -79,76 +81,99 @@ MAIN_FUNCTION
 	nrf24data::initialize(base_addr, addr_own);
 
 	// Set channel as this is not set by data layer
-	nrf24config::setChannel(10);
+	nrf24config::setChannel(22);
 
-	nrf24config::setAutoRetransmitCount(nrf24config::AutoRetransmitCount::Retransmit5);
+	nrf24config::setAutoRetransmitCount(nrf24config::AutoRetransmitCount::Retransmit10);
 	nrf24config::setAutoRetransmitDelay(nrf24config::AutoRetransmitDelay::us750);
 
 	nrf24data::Packet packet;
 	uint32_t* data = reinterpret_cast<uint32_t*>(packet.payload.data);
 
-	*data = 0;
+	*data = 0x31415900;
 
-	xpcc::PeriodicTimer sendTimer(2000);
 	packet.dest = addr_other;
-	xpcc::Timeout answerTimeout(500);
 
-	answerTimeout.stop();
+	xpcc::PeriodicTimer sendTimer(50);
+	xpcc::PeriodicTimer printTimer(10000);
+
+	uint32_t packetsSentOk = 0;
+	uint32_t packetsSentFail = 0;
+	uint32_t packetsAcked = 0;
+	uint32_t packetsNacked = 0;
 
 	while (1)
 	{
-		if (answerTimeout.execute() || sendTimer.execute())
+		if (id == id_module_1)
 		{
-			*data += 1;
-
-			if(nrf24data::sendPacket(packet))
+			if (sendTimer.execute())
 			{
-				XPCC_LOG_INFO << "Packet queued for sending" << xpcc::endl;
-			} else {
-				XPCC_LOG_ERROR << "Packet NOT sent" << xpcc::endl;
-				XPCC_LOG_DEBUG.printf("Status: 0x%02x\n", nrf24phy::readStatus());
-				XPCC_LOG_DEBUG.printf("FifoStatus: 0x%02x\n", nrf24phy::readFifoStatus());
+				if(nrf24data::sendPacket(packet))
+				{
+					// XPCC_LOG_INFO << "Packet queued for sending" << xpcc::endl;
+					++packetsSentOk;
+				} else {
+					XPCC_LOG_ERROR << "Packet NOT sent" << xpcc::endl;
+					XPCC_LOG_DEBUG.printf("Status: 0x%02x\n", nrf24phy::readStatus());
+					XPCC_LOG_DEBUG.printf("FifoStatus: 0x%02x\n", nrf24phy::readFifoStatus());
+					++packetsSentFail;
+				}
+				Hardware::LedWhite::toggle();
 			}
-			answerTimeout.stop();
-			sendTimer.restart(2000);
-			Hardware::LedWhite::toggle();
-		}
 
-		// wait for feedback
-		if (nrf24data::isPacketProcessed())
-		{
-			switch (nrf24data::getSendingFeedback()) {
-			case nrf24data::SendingState::FinishedAck:
-				XPCC_LOG_INFO << "ACK" << xpcc::endl;
-				Hardware::LedGreen::toggle();
-				break;
-			case nrf24data::SendingState::FinishedNack:
-				XPCC_LOG_INFO << "NACK" << xpcc::endl;
-				break;
-			case nrf24data::SendingState::DontKnow:
-				XPCC_LOG_INFO << "Don't know" << xpcc::endl;
-				break;
-			case nrf24data::SendingState::Failed:
-				XPCC_LOG_INFO << "Failed" << xpcc::endl;
-				break;
-			default:
-				XPCC_LOG_INFO << "unknown error" << xpcc::endl;
-				break;
+			// wait for feedback
+			if (nrf24data::isPacketProcessed())
+			{
+				switch (nrf24data::getSendingFeedback()) {
+				case nrf24data::SendingState::FinishedAck:
+					XPCC_LOG_DEBUG << "ACK" << xpcc::endl;
+					Hardware::LedGreen::toggle();
+					++packetsAcked;
+					break;
+				case nrf24data::SendingState::FinishedNack:
+					XPCC_LOG_DEBUG << "NACK" << xpcc::endl;
+					++packetsNacked;
+					break;
+				case nrf24data::SendingState::DontKnow:
+					XPCC_LOG_INFO << "Don't know" << xpcc::endl;
+					break;
+				case nrf24data::SendingState::Failed:
+					XPCC_LOG_INFO << "Failed" << xpcc::endl;
+					break;
+				default:
+					XPCC_LOG_INFO << "unknown error" << xpcc::endl;
+					break;
+				}
+			}	
+
+			if (printTimer.execute()) 
+			{
+				XPCC_LOG_INFO.printf("---------------------------------------------\n");
+				XPCC_LOG_INFO.printf("SentOk   %4d\n", packetsSentOk);
+				XPCC_LOG_INFO.printf("SentFail %4d\n", packetsSentFail);
+				XPCC_LOG_INFO.printf("Ack      %4d\n", packetsAcked);
+				XPCC_LOG_INFO.printf("Nack     %4d\n", packetsNacked);
+				XPCC_LOG_INFO.printf("RatioA%% %4d\n", int( (double(packetsAcked)  / (double(packetsSentOk)) ) * 100.0 )  );
+				XPCC_LOG_INFO.printf("RatioN%% %4d\n", int( (double(packetsNacked) / (double(packetsSentOk)) ) * 100.0 )  );
+				packetsSentOk = 0;
+				packetsSentFail = 0;
+			 	packetsAcked = 0;
+			 	packetsNacked = 0;
 			}
 		}
 
-		if (nrf24data::getPacket(packet))
+		if (id == id_module_3)
 		{
-			XPCC_LOG_INFO.printf("Received packet from 0x%02x\n", packet.src);
-			XPCC_LOG_INFO.printf("Data: %02x %02x %02x %02x\n",
-					packet.payload.data[3],
-					packet.payload.data[2],
-					packet.payload.data[1],
-					packet.payload.data[0]);
 
-			answerTimeout.restart(500);
+			if (nrf24data::getPacket(packet))
+			{
+				XPCC_LOG_INFO.printf("Received packet from 0x%02x\n", packet.src);
+				XPCC_LOG_INFO.printf("Data: %02x %02x %02x %02x\n",
+						packet.payload.data[3],
+						packet.payload.data[2],
+						packet.payload.data[1],
+						packet.payload.data[0]);
+			}
 		}
-
 
 		nrf24data::update();
 	}
