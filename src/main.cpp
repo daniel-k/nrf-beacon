@@ -44,11 +44,15 @@ MAIN_FUNCTION
 	defaultSystemClock::enable();
 	xpcc::cortex::SysTickTimer::enable();
 
+	Hardware::initialize();
+
 	XPCC_LOG_INFO << "[log-start] nrf-beacon" << xpcc::endl;
 
 	nrf24data::Address addr_own, addr_other;
 
 	uint32_t id = Hardware::getUniqueId();
+	XPCC_LOG_INFO.printf("HardwareId = 0x%08x\n", id);
+
 	switch(id)
 	{
 	case id_module_1:
@@ -68,9 +72,9 @@ MAIN_FUNCTION
 		break;
 	}
 
+	XPCC_LOG_INFO.printf("Own   address = 0x%02x\n", addr_own);
+	XPCC_LOG_INFO.printf("Other address = 0x%02x\n", addr_other);
 
-
-	Hardware::initialize();
 	nrf24phy::initialize(payload_length_phy);
 	nrf24data::initialize(base_addr, addr_own);
 
@@ -86,6 +90,7 @@ MAIN_FUNCTION
 	*data = 0;
 
 	xpcc::PeriodicTimer sendTimer(2000);
+	packet.dest = addr_other;
 	xpcc::Timeout answerTimeout(500);
 
 	answerTimeout.stop();
