@@ -123,7 +123,7 @@ MAIN_FUNCTION
 				{
 					++packetsSentOk;
 				} else {
-					XPCC_LOG_ERROR << "Packet NOT sent" << xpcc::endl;
+					XPCC_LOG_DEBUG << "Packet NOT sent" << xpcc::endl;
 					++packetsSentFail;
 				}
 				Hardware::LedWhite::toggle();
@@ -151,13 +151,13 @@ MAIN_FUNCTION
 
 			if (printTimer.execute())
 			{
-				XPCC_LOG_INFO.printf("---------------- Channel %3d (0x%02x)-----------------------------\n", currentChannel, currentChannel);
-				// XPCC_LOG_INFO.printf("SentOk   %4d\n", packetsSentOk);
-				// XPCC_LOG_INFO.printf("SentFail %4d\n", packetsSentFail);
-				// XPCC_LOG_INFO.printf("Ack      %4d\n", packetsAcked);
-				// XPCC_LOG_INFO.printf("Nack     %4d\n", packetsNacked);
-				XPCC_LOG_INFO.printf("RatioA%% %4d\n", int( (double(packetsAcked)  / (double(packetsSentOk)) ) * 100.0 )  );
-				// XPCC_LOG_INFO.printf("RatioN%% %4d\n", int( (double(packetsNacked) / (double(packetsSentOk)) ) * 100.0 )  );
+				XPCC_LOG_DEBUG.printf("---------------- Channel %3d (0x%02x)-----------------------------\n", currentChannel, currentChannel);
+				XPCC_LOG_DEBUG.printf("SentOk   %4d\n", packetsSentOk);
+				XPCC_LOG_DEBUG.printf("SentFail %4d\n", packetsSentFail);
+				XPCC_LOG_DEBUG.printf("Ack      %4d\n", packetsAcked);
+				XPCC_LOG_DEBUG.printf("Nack     %4d\n", packetsNacked);
+				XPCC_LOG_DEBUG.printf("RatioA%% %4d\n", int( (double(packetsAcked)  / (double(packetsSentOk)) ) * 100.0l )  );
+				XPCC_LOG_DEBUG.printf("RatioN%% %4d\n", int( (double(packetsNacked) / (double(packetsSentOk)) ) * 100.0l )  );
 
 				// Reset stats
 				packetsSentOk = 0;
@@ -168,39 +168,37 @@ MAIN_FUNCTION
 			 	// increment channel
  				++currentChannel;
  				if (currentChannel > channelMax) { currentChannel = channelMin; }
-
  				*data = currentChannel;
 
+
  				// Request channel change
-
-
-				XPCC_LOG_INFO.printf("Request channel change to %d \n", currentChannel);
+				XPCC_LOG_DEBUG.printf("Request channel change to %d \n", currentChannel);
  				while(true)
  				{
 
  					if(!nrf24data::sendPacket(packet)) {
- 						XPCC_LOG_INFO.printf("Request channel change not possible\n");
+ 						XPCC_LOG_DEBUG.printf("Request channel change not possible\n");
  						continue;
  					} else {
- 						XPCC_LOG_INFO << "Channel change requested successfully" << xpcc::endl;
+ 						XPCC_LOG_DEBUG << "Channel change requested successfully" << xpcc::endl;
  					}
 
- 					XPCC_LOG_INFO << "Wait for feedback" << xpcc::endl;
+ 					XPCC_LOG_DEBUG << "Wait for feedback" << xpcc::endl;
  					do {
  						nrf24data::update();
  					}
  					while (!nrf24data::isPacketProcessed());
 
- 					XPCC_LOG_INFO << "Got feedback" << xpcc::endl;
+ 					XPCC_LOG_DEBUG << "Got feedback" << xpcc::endl;
 
 					if ( (nrf24data::getSendingFeedback() == nrf24data::SendingState::FinishedAck)) {
-						XPCC_LOG_INFO << "Channel change acknowledged" << xpcc::endl;
+						XPCC_LOG_DEBUG << "Channel change acknowledged" << xpcc::endl;
 //						nrf24phy::dumpRegisters();
 						printTimer.restart();
 
 						break;
 					} else {
-						XPCC_LOG_INFO.printf("Got NACK when requesting channel change to 0x%02x\n", currentChannel);
+						XPCC_LOG_DEBUG.printf("Got NACK when requesting channel change to 0x%02x\n", currentChannel);
 					}
  				} // while
 
@@ -219,7 +217,6 @@ MAIN_FUNCTION
 
 		if (id == id_module_3)
 		{
-
 			if (nrf24data::getPacket(packet))
 			{
 				noPacketTimeout.stop();
@@ -227,9 +224,9 @@ MAIN_FUNCTION
 				uint8_t rpd = nrf24phy::readRegister(nrf24phy::NrfRegister::RPD);
 
 				Hardware::LedGreen::toggle();
-				XPCC_LOG_INFO.printf("Received packet from 0x%02x\n", packet.src);
-				XPCC_LOG_INFO << "RPD was " << rpd << xpcc::endl;
-				XPCC_LOG_INFO.printf("Data: %02x %02x %02x %02x\n",
+				XPCC_LOG_DEBUG.printf("Received packet from 0x%02x\n", packet.src);
+				XPCC_LOG_DEBUG << "RPD was " << rpd << xpcc::endl;
+				XPCC_LOG_DEBUG.printf("Data: %02x %02x %02x %02x\n",
 						packet.payload.data[3],
 						packet.payload.data[2],
 						packet.payload.data[1],
