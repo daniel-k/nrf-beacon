@@ -80,14 +80,19 @@ MAIN_FUNCTION
 	nrf24phy::initialize(payload_length_phy);
 	nrf24data::initialize(base_addr, addr_own);
 
+	constexpr int channelMin = 40;
+	constexpr int channelMax = 80;
+
 	// Hop channel
-	uint8_t currentChannel = 20;
+	uint8_t currentChannel = channelMin;
 
 	// Set channel as this is not set by data layer
 	nrf24config::setChannel(currentChannel);
 
 	nrf24config::setAutoRetransmitCount(nrf24config::AutoRetransmitCount::Retransmit10);
 	nrf24config::setAutoRetransmitDelay(nrf24config::AutoRetransmitDelay::us750);
+	nrf24config::setSpeed(nrf24config::Speed::MBps1);
+	nrf24config::setCrc(nrf24config::Crc::Crc2Byte);
 
 	nrf24data::Packet packet;
 	uint32_t* data = reinterpret_cast<uint32_t*>(packet.payload.data);
@@ -96,8 +101,11 @@ MAIN_FUNCTION
 
 	packet.dest = addr_other;
 
-	xpcc::PeriodicTimer sendTimer(50);
+	xpcc::PeriodicTimer sendTimer(20);
 	xpcc::PeriodicTimer printTimer(1000);
+
+	constexpr int noPacketTimeoutInterval = 200;
+	xpcc::Timeout noPacketTimeout;
 
 	uint32_t packetsSentOk = 0;
 	uint32_t packetsSentFail = 0;
@@ -113,12 +121,9 @@ MAIN_FUNCTION
 			{
 				if(nrf24data::sendPacket(packet))
 				{
-					// XPCC_LOG_INFO << "Packet queued for sending" << xpcc::endl;
 					++packetsSentOk;
 				} else {
 					XPCC_LOG_ERROR << "Packet NOT sent" << xpcc::endl;
-					XPCC_LOG_DEBUG.printf("Status: 0x%02x\n", nrf24phy::readStatus());
-					XPCC_LOG_DEBUG.printf("FifoStatus: 0x%02x\n", nrf24phy::readFifoStatus());
 					++packetsSentFail;
 				}
 				Hardware::LedWhite::toggle();
@@ -130,6 +135,7 @@ MAIN_FUNCTION
 				switch (nrf24data::getSendingFeedback()) {
 				case nrf24data::SendingState::FinishedAck:
 					XPCC_LOG_DEBUG << "ACK" << xpcc::endl;
+					noPacketTimeout.stop();
 					Hardware::LedGreen::toggle();
 					++packetsAcked;
 					break;
@@ -137,65 +143,78 @@ MAIN_FUNCTION
 					XPCC_LOG_DEBUG << "NACK" << xpcc::endl;
 					++packetsNacked;
 					break;
-				case nrf24data::SendingState::DontKnow:
-					XPCC_LOG_INFO << "Don't know" << xpcc::endl;
-					break;
-				case nrf24data::SendingState::Failed:
-					XPCC_LOG_INFO << "Failed" << xpcc::endl;
-					break;
 				default:
-					XPCC_LOG_INFO << "unknown error" << xpcc::endl;
+					XPCC_LOG_DEBUG << "Neither ACK nor NACK" << xpcc::endl;
 					break;
 				}
-			}	
+			}
 
-			if (printTimer.execute()) 
+			if (printTimer.execute())
 			{
-				XPCC_LOG_INFO.printf("---------------- Channel %3d -----------------------------\n", currentChannel);
+				XPCC_LOG_INFO.printf("---------------- Channel %3d (0x%02x)-----------------------------\n", currentChannel, currentChannel);
 				// XPCC_LOG_INFO.printf("SentOk   %4d\n", packetsSentOk);
 				// XPCC_LOG_INFO.printf("SentFail %4d\n", packetsSentFail);
 				// XPCC_LOG_INFO.printf("Ack      %4d\n", packetsAcked);
 				// XPCC_LOG_INFO.printf("Nack     %4d\n", packetsNacked);
 				XPCC_LOG_INFO.printf("RatioA%% %4d\n", int( (double(packetsAcked)  / (double(packetsSentOk)) ) * 100.0 )  );
 				// XPCC_LOG_INFO.printf("RatioN%% %4d\n", int( (double(packetsNacked) / (double(packetsSentOk)) ) * 100.0 )  );
+
+				// Reset stats
 				packetsSentOk = 0;
 				packetsSentFail = 0;
 			 	packetsAcked = 0;
 			 	packetsNacked = 0;
 
+			 	// increment channel
  				++currentChannel;
- 				if (currentChannel > 80) { currentChannel = 0; }
+ 				if (currentChannel > channelMax) { currentChannel = channelMin; }
 
  				*data = currentChannel;
 
  				// Request channel change
 
- 				xpcc::Timeout timeout(10000);
 
 				XPCC_LOG_INFO.printf("Request channel change to %d \n", currentChannel);
  				while(true)
- 				{	
- 					bool ret = nrf24data::sendPacket(packet);
- 					// XPCC_LOG_INFO.printf("Request channel change returned %d\n", ret);
+ 				{
 
- 					while (!nrf24data::isPacketProcessed()) { 
+ 					if(!nrf24data::sendPacket(packet)) {
+ 						XPCC_LOG_INFO.printf("Request channel change not possible\n");
+ 						continue;
+ 					} else {
+ 						XPCC_LOG_INFO << "Channel change requested successfully" << xpcc::endl;
+ 					}
+
+ 					XPCC_LOG_INFO << "Wait for feedback" << xpcc::endl;
+ 					do {
  						nrf24data::update();
- 					};
+ 					}
+ 					while (!nrf24data::isPacketProcessed());
 
- 					// XPCC_LOG_INFO.printf("Channel change packet aired to %d\n", currentChannel);
+ 					XPCC_LOG_INFO << "Got feedback" << xpcc::endl;
 
-					if ( (nrf24data::getSendingFeedback() == nrf24data::SendingState::FinishedAck) or (timeout.execute()) ) {
-						// XPCC_LOG_INFO.printf("Channel change acked to %d\n", currentChannel);
-						printTimer.restart(1000);
+					if ( (nrf24data::getSendingFeedback() == nrf24data::SendingState::FinishedAck)) {
+						XPCC_LOG_INFO << "Channel change acknowledged" << xpcc::endl;
+//						nrf24phy::dumpRegisters();
+						printTimer.restart();
+
 						break;
+					} else {
+						XPCC_LOG_INFO.printf("Got NACK when requesting channel change to 0x%02x\n", currentChannel);
 					}
-
-					xpcc::delayMilliseconds(5);
  				} // while
- 				nrf24config::setChannel(currentChannel);
- 				xpcc::delayMilliseconds(5);
-			}
 
+ 				noPacketTimeout.restart(noPacketTimeoutInterval);
+ 				nrf24config::setChannel(currentChannel);
+			}
+		}
+
+		if(noPacketTimeout.execute())
+		{
+			--currentChannel;
+			nrf24config::setChannel(currentChannel);
+			Hardware::LedWhite::toggle();
+			XPCC_LOG_INFO << "Switch back to channel " << currentChannel << xpcc::endl;
 		}
 
 		if (id == id_module_3)
@@ -203,18 +222,26 @@ MAIN_FUNCTION
 
 			if (nrf24data::getPacket(packet))
 			{
+				noPacketTimeout.stop();
+
+				uint8_t rpd = nrf24phy::readRegister(nrf24phy::NrfRegister::RPD);
+
 				Hardware::LedGreen::toggle();
 				XPCC_LOG_INFO.printf("Received packet from 0x%02x\n", packet.src);
+				XPCC_LOG_INFO << "RPD was " << rpd << xpcc::endl;
 				XPCC_LOG_INFO.printf("Data: %02x %02x %02x %02x\n",
 						packet.payload.data[3],
 						packet.payload.data[2],
 						packet.payload.data[1],
 						packet.payload.data[0]);
+
 				if ((*data != currentChannel) and (packet.src == addr_other)) {
 					currentChannel = *data;
 					XPCC_LOG_INFO.printf("Changing channel to %d\n", currentChannel);
 					nrf24config::setChannel(currentChannel);
 					Hardware::LedWhite::toggle();
+
+					noPacketTimeout.restart(noPacketTimeoutInterval);
 				}
 			}
 		}
