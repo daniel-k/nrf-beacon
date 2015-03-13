@@ -10,7 +10,7 @@ using namespace xpcc::stm32;
 typedef SystemClock<Pll<ExternalClock<MHz12>, MHz72> > defaultSystemClock;
 
 constexpr uint32_t UartSpeed    = 115200;
-constexpr uint32_t SpiSpeed     = 9000000;
+constexpr uint32_t SpiSpeed     = 4500000;
 
 class Hardware
 {
