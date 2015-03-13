@@ -80,8 +80,11 @@ MAIN_FUNCTION
 	nrf24phy::initialize(payload_length_phy);
 	nrf24data::initialize(base_addr, addr_own);
 
+	// Hop channel
+	uint8_t currentChannel = 20;
+
 	// Set channel as this is not set by data layer
-	nrf24config::setChannel(22);
+	nrf24config::setChannel(currentChannel);
 
 	nrf24config::setAutoRetransmitCount(nrf24config::AutoRetransmitCount::Retransmit10);
 	nrf24config::setAutoRetransmitDelay(nrf24config::AutoRetransmitDelay::us750);
@@ -89,17 +92,18 @@ MAIN_FUNCTION
 	nrf24data::Packet packet;
 	uint32_t* data = reinterpret_cast<uint32_t*>(packet.payload.data);
 
-	*data = 0x31415900;
+	*data = currentChannel;
 
 	packet.dest = addr_other;
 
 	xpcc::PeriodicTimer sendTimer(50);
-	xpcc::PeriodicTimer printTimer(10000);
+	xpcc::PeriodicTimer printTimer(1000);
 
 	uint32_t packetsSentOk = 0;
 	uint32_t packetsSentFail = 0;
 	uint32_t packetsAcked = 0;
 	uint32_t packetsNacked = 0;
+
 
 	while (1)
 	{
@@ -147,18 +151,51 @@ MAIN_FUNCTION
 
 			if (printTimer.execute()) 
 			{
-				XPCC_LOG_INFO.printf("---------------------------------------------\n");
-				XPCC_LOG_INFO.printf("SentOk   %4d\n", packetsSentOk);
-				XPCC_LOG_INFO.printf("SentFail %4d\n", packetsSentFail);
-				XPCC_LOG_INFO.printf("Ack      %4d\n", packetsAcked);
-				XPCC_LOG_INFO.printf("Nack     %4d\n", packetsNacked);
+				XPCC_LOG_INFO.printf("---------------- Channel %3d -----------------------------\n", currentChannel);
+				// XPCC_LOG_INFO.printf("SentOk   %4d\n", packetsSentOk);
+				// XPCC_LOG_INFO.printf("SentFail %4d\n", packetsSentFail);
+				// XPCC_LOG_INFO.printf("Ack      %4d\n", packetsAcked);
+				// XPCC_LOG_INFO.printf("Nack     %4d\n", packetsNacked);
 				XPCC_LOG_INFO.printf("RatioA%% %4d\n", int( (double(packetsAcked)  / (double(packetsSentOk)) ) * 100.0 )  );
-				XPCC_LOG_INFO.printf("RatioN%% %4d\n", int( (double(packetsNacked) / (double(packetsSentOk)) ) * 100.0 )  );
+				// XPCC_LOG_INFO.printf("RatioN%% %4d\n", int( (double(packetsNacked) / (double(packetsSentOk)) ) * 100.0 )  );
 				packetsSentOk = 0;
 				packetsSentFail = 0;
 			 	packetsAcked = 0;
 			 	packetsNacked = 0;
+
+ 				++currentChannel;
+ 				if (currentChannel > 80) { currentChannel = 0; }
+
+ 				*data = currentChannel;
+
+ 				// Request channel change
+
+ 				xpcc::Timeout timeout(10000);
+
+				XPCC_LOG_INFO.printf("Request channel change to %d \n", currentChannel);
+ 				while(true)
+ 				{	
+ 					bool ret = nrf24data::sendPacket(packet);
+ 					// XPCC_LOG_INFO.printf("Request channel change returned %d\n", ret);
+
+ 					while (!nrf24data::isPacketProcessed()) { 
+ 						nrf24data::update();
+ 					};
+
+ 					// XPCC_LOG_INFO.printf("Channel change packet aired to %d\n", currentChannel);
+
+					if ( (nrf24data::getSendingFeedback() == nrf24data::SendingState::FinishedAck) or (timeout.execute()) ) {
+						// XPCC_LOG_INFO.printf("Channel change acked to %d\n", currentChannel);
+						printTimer.restart(1000);
+						break;
+					}
+
+					xpcc::delayMilliseconds(5);
+ 				} // while
+ 				nrf24config::setChannel(currentChannel);
+ 				xpcc::delayMilliseconds(5);
 			}
+
 		}
 
 		if (id == id_module_3)
@@ -166,12 +203,19 @@ MAIN_FUNCTION
 
 			if (nrf24data::getPacket(packet))
 			{
+				Hardware::LedGreen::toggle();
 				XPCC_LOG_INFO.printf("Received packet from 0x%02x\n", packet.src);
 				XPCC_LOG_INFO.printf("Data: %02x %02x %02x %02x\n",
 						packet.payload.data[3],
 						packet.payload.data[2],
 						packet.payload.data[1],
 						packet.payload.data[0]);
+				if ((*data != currentChannel) and (packet.src == addr_other)) {
+					currentChannel = *data;
+					XPCC_LOG_INFO.printf("Changing channel to %d\n", currentChannel);
+					nrf24config::setChannel(currentChannel);
+					Hardware::LedWhite::toggle();
+				}
 			}
 		}
 
