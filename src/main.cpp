@@ -55,23 +55,41 @@ struct ChannelStats
 
 ChannelStats stats[channelMax - channelMin + 1];
 
-void
-initializeStats(ChannelStats stats[], uint32_t min, uint32_t max)
-{
-	for(uint32_t i = 0; i < (max - min + 1); i++)
-	{
-		stats[i].channelNumber = min + i;
-	}
-}
-
 class Tui
 {
 public:
+
+	static constexpr int max_lines = 20;
 
 	static void
 	setCursor(uint32_t x, uint32_t y)
 	{
 		XPCC_LOG_INFO.printf("\033[%d;%dH", x, y);
+	}
+
+	static void
+	printChannel(ChannelStats stats[], uint32_t min, uint32_t channel)
+	{
+		uint8_t i = channel - min;
+		uint8_t col = int( float(i) / float(max_lines) );
+
+		uint32_t success = int ( stats[i].packetSuccessAverage * 100.0f );
+		uint32_t fail = int ( stats[i].packetDropAverage * 100.0f );
+		uint32_t retry_high = int( stats[i].retryAverage );
+		uint32_t retry_low = int( (stats[i].retryAverage - float(retry_high)) * 100.0f );
+
+		setCursor(9 + i - (col * max_lines), 1 + (47 * col));
+		XPCC_LOG_INFO.printf("                                           ");
+
+		setCursor(9 + i - (col * max_lines), 1 + (47 * col));
+		XPCC_LOG_INFO.printf("| %3d | %6d |    %3d%% | %3d%% |   %2d.%02d |",
+				stats[i].channelNumber,
+				stats[i].numberOfPasses,
+				success,
+				fail,
+				retry_high, retry_low);
+
+		setCursor(1,1);
 	}
 
 	static void
@@ -90,14 +108,18 @@ public:
 		XPCC_LOG_INFO << "| Ch# | Passes | Success | Drop | Retries |" << xpcc::endl;
 		XPCC_LOG_INFO << "+-----+--------+---------+------+---------+" << xpcc::endl;
 
+		uint32_t col = 0;
+
 		for(uint32_t i = 0; i < (max - min + 1); i++)
 		{
+			setCursor(9 + i - (col * max_lines), 1 + (47 * col));
+
 			uint32_t success = int ( stats[i].packetSuccessAverage * 100.0f );
 			uint32_t fail = int ( stats[i].packetDropAverage * 100.0f );
 			uint32_t retry_high = int( stats[i].retryAverage );
 			uint32_t retry_low = int( (stats[i].retryAverage - float(retry_high)) * 100.0f );
 
-			XPCC_LOG_INFO.printf("| %3d | %6d |    %3d%% | %3d%% |   %2d.%02d |\n",
+			XPCC_LOG_INFO.printf("| %3d | %6d |    %3d%% | %3d%% |   %2d.%02d |",
 					stats[i].channelNumber,
 					stats[i].numberOfPasses,
 					success,
@@ -106,13 +128,34 @@ public:
 
 			if(i % 5 == 0)
 			{
-				XPCC_LOG_INFO << "+-----+--------+---------+------+---------+" << xpcc::endl;
+//				setCursor(9 + i, 1 + (44 * col));
+//				XPCC_LOG_INFO << "+-----+--------+---------+------+---------+" << xpcc::endl;
+			}
+
+			if( (i % max_lines == 0) && (i != 0) && (i != (max - min))) {
+				col++;
+				setCursor(6, 1 + (47 * col));
+				XPCC_LOG_INFO << "+-----+--------+---------+------+---------+";
+				setCursor(7, 1 + (47 * col));
+				XPCC_LOG_INFO << "| Ch# | Passes | Success | Drop | Retries |";
+				setCursor(8, 1 + (47 * col));
+				XPCC_LOG_INFO << "+-----+--------+---------+------+---------+";
 			}
 		}
+	}
+};
 
+
+void
+initializeStats(ChannelStats stats[], uint32_t min, uint32_t max)
+{
+	for(uint32_t i = 0; i < (max - min + 1); i++)
+	{
+		stats[i].channelNumber = min + i;
 	}
 
-};
+	Tui::printStats(stats, min, max);
+}
 
 MAIN_FUNCTION
 {
@@ -151,8 +194,8 @@ MAIN_FUNCTION
 		break;
 	}
 
-	XPCC_LOG_INFO.printf("Own   address = 0x%02x\n", addr_own);
-	XPCC_LOG_INFO.printf("Other address = 0x%02x\n", addr_other);
+	XPCC_LOG_DEBUG.printf("Own   address = 0x%02x\n", addr_own);
+	XPCC_LOG_DEBUG.printf("Other address = 0x%02x\n", addr_other);
 
 	nrf24phy::initialize(payload_length_phy);
 	nrf24data::initialize(base_addr, addr_own);
@@ -164,8 +207,8 @@ MAIN_FUNCTION
 	// Set channel as this is not set by data layer
 	nrf24config::setChannel(currentChannel);
 
-	nrf24config::setAutoRetransmitCount(nrf24config::AutoRetransmitCount::Retransmit10);
-	nrf24config::setAutoRetransmitDelay(nrf24config::AutoRetransmitDelay::us750);
+	nrf24config::setAutoRetransmitCount(nrf24config::AutoRetransmitCount::Retransmit15);
+	nrf24config::setAutoRetransmitDelay(nrf24config::AutoRetransmitDelay::us500);
 	nrf24config::setSpeed(nrf24config::Speed::MBps1);
 	nrf24config::setCrc(nrf24config::Crc::Crc2Byte);
 
@@ -176,10 +219,13 @@ MAIN_FUNCTION
 
 	packet.dest = addr_other;
 
-	xpcc::PeriodicTimer sendTimer(20);
-	xpcc::PeriodicTimer printTimer(1000);
+	xpcc::PeriodicTimer sendTimer(10);
+	xpcc::PeriodicTimer printTimer(200);
+	xpcc::PeriodicTimer redrawCompleteTimer(3000);
 
-	constexpr int noPacketTimeoutInterval = 200;
+	redrawCompleteTimer.stop();
+
+	constexpr int noPacketTimeoutInterval = 180;
 	xpcc::Timeout noPacketTimeout;
 
 	uint32_t packetsSentOk = 0;
@@ -260,12 +306,12 @@ MAIN_FUNCTION
 			 	packetsNacked = 0;
 			 	retries = 0;
 
+ 				Tui::printChannel(stats, channelMin, currentChannel);
+
 			 	// increment channel
  				++currentChannel;
  				if (currentChannel > channelMax) { currentChannel = channelMin; }
  				*data = currentChannel;
-
- 				Tui::printStats(stats, channelMin, channelMax);
 
  				// Request channel change
 				XPCC_LOG_DEBUG.printf("Request channel change to %d \n", currentChannel);
@@ -309,6 +355,11 @@ MAIN_FUNCTION
 			nrf24config::setChannel(currentChannel);
 			Hardware::LedWhite::toggle();
 			XPCC_LOG_DEBUG << "Switch back to channel " << currentChannel << xpcc::endl;
+		}
+
+		if(redrawCompleteTimer.execute())
+		{
+			Tui::printStats(stats, channelMin, channelMax);
 		}
 
 		if (id == id_module_3)
