@@ -38,6 +38,81 @@ constexpr int payload_length_phy = 6;
 constexpr int payload_length_data = payload_length_phy -
                                     sizeof(nrf24data::Header);
 
+constexpr int channelMin = 40;
+constexpr int channelMax = 80;
+
+struct ChannelStats
+{
+	uint8_t channelNumber = 0;
+	uint16_t numberOfPasses = 0;
+	float retryAverage = 0.0f;
+	float packetDropAverage = 0.0f;
+	float packetSuccessAverage = 0.0f;
+
+	// This is only available for Rx side
+	float rpdAverage = 0.0f;
+};
+
+ChannelStats stats[channelMax - channelMin + 1];
+
+void
+initializeStats(ChannelStats stats[], uint32_t min, uint32_t max)
+{
+	for(uint32_t i = 0; i < (max - min + 1); i++)
+	{
+		stats[i].channelNumber = min + i;
+	}
+}
+
+class Tui
+{
+public:
+
+	static void
+	setCursor(uint32_t x, uint32_t y)
+	{
+		XPCC_LOG_INFO.printf("\033[%d;%dH", x, y);
+	}
+
+	static void
+	printStats(ChannelStats stats[], uint32_t min, uint32_t max)
+	{
+		XPCC_LOG_INFO.printf("\033[2J");
+		setCursor(2, 7);
+		XPCC_LOG_INFO << "+-------------------------+";
+		setCursor(3, 7);
+		XPCC_LOG_INFO << "| 2.4 GHz Channel Scanner |";
+		setCursor(4, 7);
+		XPCC_LOG_INFO << "+-------------------------+";
+
+		setCursor(6, 1);
+		XPCC_LOG_INFO << "+-----+--------+---------+------+---------+" << xpcc::endl;
+		XPCC_LOG_INFO << "| Ch# | Passes | Success | Drop | Retries |" << xpcc::endl;
+		XPCC_LOG_INFO << "+-----+--------+---------+------+---------+" << xpcc::endl;
+
+		for(uint32_t i = 0; i < (max - min + 1); i++)
+		{
+			uint32_t success = int ( stats[i].packetSuccessAverage * 100.0f );
+			uint32_t fail = int ( stats[i].packetDropAverage * 100.0f );
+			uint32_t retry_high = int( stats[i].retryAverage );
+			uint32_t retry_low = int( (stats[i].retryAverage - float(retry_high)) * 100.0f );
+
+			XPCC_LOG_INFO.printf("| %3d | %6d |    %3d%% | %3d%% |   %2d.%02d |\n",
+					stats[i].channelNumber,
+					stats[i].numberOfPasses,
+					success,
+					fail,
+					retry_high, retry_low);
+
+			if(i % 5 == 0)
+			{
+				XPCC_LOG_INFO << "+-----+--------+---------+------+---------+" << xpcc::endl;
+			}
+		}
+
+	}
+
+};
 
 MAIN_FUNCTION
 {
@@ -52,6 +127,8 @@ MAIN_FUNCTION
 
 	uint32_t id = Hardware::getUniqueId();
 	XPCC_LOG_INFO.printf("HardwareId = 0x%08x\n", id);
+
+	initializeStats(stats, channelMin, channelMax);
 
 	switch(id)
 	{
@@ -80,8 +157,6 @@ MAIN_FUNCTION
 	nrf24phy::initialize(payload_length_phy);
 	nrf24data::initialize(base_addr, addr_own);
 
-	constexpr int channelMin = 40;
-	constexpr int channelMax = 80;
 
 	// Hop channel
 	uint8_t currentChannel = channelMin;
@@ -112,6 +187,7 @@ MAIN_FUNCTION
 	uint32_t packetsAcked = 0;
 	uint32_t packetsNacked = 0;
 
+	uint32_t retries = 0;
 
 	while (1)
 	{
@@ -132,44 +208,64 @@ MAIN_FUNCTION
 			// wait for feedback
 			if (nrf24data::isPacketProcessed())
 			{
-				switch (nrf24data::getSendingFeedback()) {
-				case nrf24data::SendingState::FinishedAck:
-					XPCC_LOG_DEBUG << "ACK" << xpcc::endl;
+				if(nrf24data::getSendingFeedback() == nrf24data::SendingState::FinishedAck) {
 					noPacketTimeout.stop();
 					Hardware::LedGreen::toggle();
 					++packetsAcked;
-					break;
-				case nrf24data::SendingState::FinishedNack:
-					XPCC_LOG_DEBUG << "NACK" << xpcc::endl;
+					XPCC_LOG_DEBUG << "ACK" << xpcc::endl;
+				} else {
 					++packetsNacked;
-					break;
-				default:
 					XPCC_LOG_DEBUG << "Neither ACK nor NACK" << xpcc::endl;
-					break;
 				}
+
+				retries += nrf24config::getRetryCount();
 			}
 
 			if (printTimer.execute())
 			{
+				float packetSuccessRate = float(packetsAcked) / float(packetsSentOk);
+				float packetDropRate = float(packetsNacked) / float(packetsSentOk);
+				float retryAverage = float(retries) / float(packetsSentOk);
+
+				uint8_t index = currentChannel - channelMin;
+
+				stats[index].numberOfPasses += 1;
+
+				stats[index].retryAverage += retryAverage;
+				if(stats[index].retryAverage != retryAverage)
+					stats[index].retryAverage /= 2;
+
+				stats[index].packetDropAverage += packetDropRate;
+				if(stats[index].packetDropAverage != packetDropRate)
+					stats[index].packetDropAverage /= 2;
+
+				stats[index].packetSuccessAverage += packetSuccessRate;
+				if(stats[index].packetSuccessAverage != packetSuccessRate)
+					stats[index].packetSuccessAverage /= 2;
+
+
 				XPCC_LOG_DEBUG.printf("---------------- Channel %3d (0x%02x)-----------------------------\n", currentChannel, currentChannel);
 				XPCC_LOG_DEBUG.printf("SentOk   %4d\n", packetsSentOk);
 				XPCC_LOG_DEBUG.printf("SentFail %4d\n", packetsSentFail);
 				XPCC_LOG_DEBUG.printf("Ack      %4d\n", packetsAcked);
 				XPCC_LOG_DEBUG.printf("Nack     %4d\n", packetsNacked);
-				XPCC_LOG_DEBUG.printf("RatioA%% %4d\n", int( (double(packetsAcked)  / (double(packetsSentOk)) ) * 100.0l )  );
-				XPCC_LOG_DEBUG.printf("RatioN%% %4d\n", int( (double(packetsNacked) / (double(packetsSentOk)) ) * 100.0l )  );
+				XPCC_LOG_DEBUG.printf("RatioA%% %4d\n", int( packetSuccessRate * 100.0f ) );
+				XPCC_LOG_DEBUG.printf("RatioN%% %4d\n", int( packetDropRate * 100.0f ) );
+
 
 				// Reset stats
 				packetsSentOk = 0;
 				packetsSentFail = 0;
 			 	packetsAcked = 0;
 			 	packetsNacked = 0;
+			 	retries = 0;
 
 			 	// increment channel
  				++currentChannel;
  				if (currentChannel > channelMax) { currentChannel = channelMin; }
  				*data = currentChannel;
 
+ 				Tui::printStats(stats, channelMin, channelMax);
 
  				// Request channel change
 				XPCC_LOG_DEBUG.printf("Request channel change to %d \n", currentChannel);
@@ -209,10 +305,10 @@ MAIN_FUNCTION
 
 		if(noPacketTimeout.execute())
 		{
-			--currentChannel;
+			if(currentChannel == channelMin) { currentChannel = channelMax; } else { --currentChannel; }
 			nrf24config::setChannel(currentChannel);
 			Hardware::LedWhite::toggle();
-			XPCC_LOG_INFO << "Switch back to channel " << currentChannel << xpcc::endl;
+			XPCC_LOG_DEBUG << "Switch back to channel " << currentChannel << xpcc::endl;
 		}
 
 		if (id == id_module_3)
